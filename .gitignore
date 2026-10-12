@@ -10,15 +10,24 @@ __pycache__/
 # Jupyter
 .ipynb_checkpoints/
 
-# Data
-data/raw/
-data/processed/
+# Raw datasets: ignore contents, keep directory
+data/raw/*
+!data/raw/.gitkeep
 
-# Trained models
-models/
+# Processed datasets: ignore contents, keep directory
+data/processed/*
+!data/processed/.gitkeep
 
-# Generated reports
-reports/
+# Trained models: ignore contents, keep directory
+models/*
+!models/.gitkeep
+
+# Generated reports: ignore contents, keep directory
+reports/*
+!reports/.gitkeep
+!reports/figures/
+reports/figures/*
+!reports/figures/.gitkeep
 
 # Environment variables
 .env
