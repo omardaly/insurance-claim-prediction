@@ -1,0 +1,844 @@
+
+===== CELL 0 [code] =====
+import pandas as pd
+import numpy as np
+
+freq_raw = pd.read_csv("../data/raw/freMTPL2freq.csv")
+sev_raw = pd.read_csv("../data/raw/freMTPL2sev.csv")
+
+freq = freq_raw.copy()
+sev = sev_raw.copy()
+print(freq.shape)
+print(sev.shape)
+
+orphan_mask = ~sev["IDpol"].isin(freq["IDpol"])
+print("Orphan claim rows dropped:", orphan_mask.sum())
+print("\n===== DUPLICATES =====")
+
+print("Frequency duplicated rows:", freq.duplicated().sum())
+print("Severity duplicated rows:", sev.duplicated().sum())
+
+# IDpol should be unique in freq
+print("Duplicated IDpol in frequency:", freq["IDpol"].duplicated().sum())
+
+# IDpol is NOT supposed to be unique in severity
+print("Duplicated IDpol in severity:", sev["IDpol"].duplicated().sum())
+
+print("\n===== NULL VALUES =====")
+
+print("Frequency:")
+print(freq.isnull().sum())
+
+print("\nSeverity:")
+print(sev.isnull().sum())
+
+# ============================================================
+# 4. CHECK DATA TYPES
+# ============================================================
+
+print("\n===== DATA TYPES =====")
+
+print("Frequency:")
+print(freq.dtypes)
+
+print("\nSeverity:")
+print(sev.dtypes)
+
+# ============================================================
+# 5. CHECK NUMERICAL VARIABLES
+# ============================================================
+
+print("\n===== FREQUENCY NUMERICAL CHECK =====")
+print(freq.describe())
+
+print("\n===== SEVERITY NUMERICAL CHECK =====")
+print(sev.describe())
+
+# ============================================================
+# 6. CHECK EXPECTED VALUES / LOGICAL ERRORS
+# ============================================================
+
+print("\n===== LOGICAL CHECKS =====")
+
+# Exposure should be > 0
+print("Exposure <= 0:")
+print((freq["Exposure"] <= 0).sum())
+
+# ClaimNb should not be negative
+print("Negative ClaimNb:")
+print((freq["ClaimNb"] < 0).sum())
+
+# Vehicle age should not be negative
+print("Negative VehAge:")
+print((freq["VehAge"] < 0).sum())
+
+# Driver age should be >= 18
+print("Driver age < 18:")
+print((freq["DrivAge"] < 18).sum())
+
+# BonusMalus should be between 50 and 350
+print("BonusMalus outside 50-350:")
+print(((freq["BonusMalus"] < 50) | (freq["BonusMalus"] > 350)).sum())
+
+# Claim amount should not be negative
+print("Negative ClaimAmount:")
+print((sev["ClaimAmount"] < 0).sum())
+
+print("\n===== IDpol RELATIONSHIP =====")
+
+# IDs appearing in severity but not in frequency
+missing_policies = ~sev["IDpol"].isin(freq["IDpol"])
+
+print(
+    "Claims with IDpol not found in frequency:",
+    missing_policies.sum()
+)
+
+# IDs appearing in frequency but never having a claim
+no_claim_policy = ~freq["IDpol"].isin(sev["IDpol"])
+
+print(
+    "Policies with no claim:",
+    no_claim_policy.sum()
+)
+
+# ============================================================
+# 9. DISPLAY SUSPICIOUS ROWS
+# ============================================================
+
+print("\n===== SUSPICIOUS ROWS =====")
+
+print("\nInvalid Exposure:")
+print(freq[freq["Exposure"] <= 0].head())
+
+print("\nInvalid Driver Age:")
+print(freq[freq["DrivAge"] < 18].head())
+
+print("\nInvalid BonusMalus:")
+print(
+    freq[
+        (freq["BonusMalus"] < 50) |
+        (freq["BonusMalus"] > 350)
+    ].head()
+)
+
+print("\nInvalid Claim Amount:")
+print(sev[sev["ClaimAmount"] < 0].head())
+--- OUTPUT ---
+(678013, 12)
+(26639, 2)
+Orphan claim rows dropped: 195
+
+===== DUPLICATES =====
+Frequency duplicated rows: 0
+Severity duplicated rows: 255
+Duplicated IDpol in frequency: 0
+Duplicated IDpol in severity: 1689
+
+===== NULL VALUES =====
+Frequency:
+IDpol         0
+ClaimNb       0
+Exposure      0
+VehPower      0
+VehAge        0
+DrivAge       0
+BonusMalus    0
+VehBrand      0
+VehGas        0
+Area          0
+Density       0
+Region        0
+dtype: int64
+
+Severity:
+IDpol          0
+ClaimAmount    0
+dtype: int64
+
+===== DATA TYPES =====
+Frequency:
+IDpol         float64
+ClaimNb         int64
+Exposure      float64
+VehPower        int64
+VehAge          int64
+DrivAge         int64
+BonusMalus      int64
+VehBrand          str
+VehGas            str
+Area              str
+Density         int64
+Region            str
+dtype: object
+
+Severity:
+IDpol            int64
+ClaimAmount    float64
+dtype: object
+
+===== FREQUENCY NUMERICAL CHECK =====
+              IDpol        ClaimNb       Exposure       VehPower  \
+count  6.780130e+05  678013.000000  678013.000000  678013.000000   
+mean   2.621857e+06       0.053247       0.528750       6.454631   
+std    1.641783e+06       0.240117       0.364442       2.050906   
+min    1.000000e+00       0.000000       0.002732       4.000000   
+25%    1.157951e+06       0.000000       0.180000       5.000000   
+50%    2.272152e+06       0.000000       0.490000       6.000000   
+75%    4.046274e+06       0.000000       0.990000       7.000000   
+max    6.114330e+06      16.000000       2.010000      15.000000   
+
+              VehAge        DrivAge     BonusMalus        Density  
+count  678013.000000  678013.000000  678013.000000  678013.000000  
+mean        7.044265      45.499122      59.761502    1792.422405  
+std         5.666232      14.137444      15.636658    3958.646564  
+min         0.000000      18.000000      50.000000       1.000000  
+25%         2.000000      34.000000      50.000000      92.000000  
+50%         6.000000      44.000000      50.000000     393.000000  
+75%        11.000000      55.000000      64.000000    1658.000000  
+max       100.000000     100.000000     230.000000   27000.000000  
+
+===== SEVERITY NUMERICAL CHECK =====
+              IDpol   ClaimAmount
+count  2.663900e+04  2.663900e+04
+mean   2.279864e+06  2.278536e+03
+std    1.577202e+06  2.929748e+04
+min    1.390000e+02  1.000000e+00
+25%    1.087642e+06  6.868100e+02
+50%    2.137413e+06  1.172000e+03
+75%    3.180162e+06  1.228080e+03
+max    6.113971e+06  4.075401e+06
+
+===== LOGICAL CHECKS =====
+Exposure <= 0:
+0
+Negative ClaimNb:
+0
+Negative VehAge:
+0
+Driver age < 18:
+0
+BonusMalus outside 50-350:
+0
+Negative ClaimAmount:
+0
+
+===== IDpol RELATIONSHIP =====
+Claims with IDpol not found in frequency: 195
+Policies with no claim: 653069
+
+===== SUSPICIOUS ROWS =====
+
+Invalid Exposure:
+Empty DataFrame
+Columns: [IDpol, ClaimNb, Exposure, VehPower, VehAge, DrivAge, BonusMalus, VehBrand, VehGas, Area, Density, Region]
+Index: []
+
+Invalid Driver Age:
+Empty DataFrame
+Columns: [IDpol, ClaimNb, Exposure, VehPower, VehAge, DrivAge, BonusMalus, VehBrand, VehGas, Area, Density, Region]
+Index: []
+
+Invalid BonusMalus:
+Empty DataFrame
+Columns: [IDpol, ClaimNb, Exposure, VehPower, VehAge, DrivAge, BonusMalus, VehBrand, VehGas, Area, Density, Region]
+Index: []
+
+Invalid Claim Amount:
+Empty DataFrame
+Columns: [IDpol, ClaimAmount]
+Index: []
+
+
+===== CELL 1 [code] =====
+import pandas as pd
+import numpy as np
+
+freq = freq_raw.copy()
+sev = sev_raw.copy()
+
+# ------------------------------------------------------------
+# 1. Fix the IDpol dtype (float -> int), but only if it is safe
+# ------------------------------------------------------------
+assert (freq["IDpol"] % 1 == 0).all(), "IDpol has non-integer values"
+freq["IDpol"] = freq["IDpol"].astype("int64")
+
+# ------------------------------------------------------------
+# 2. Categorical columns: inspect, then normalize
+# ------------------------------------------------------------
+cat_cols = ["VehBrand", "VehGas", "Area", "Region"]
+for col in cat_cols:
+    print(col, sorted(freq[col].unique()))   # look for spaces, quotes, casing
+
+for col in cat_cols:
+    freq[col] = freq[col].str.strip()        # remove white spaces from begin and end of string
+
+# ------------------------------------------------------------
+# 3. Orphan claims: sev rows whose policy is not in freq
+#    They have no features, so they cannot be used. Drop and log.
+# lena ay IDpol mawjouda fi sev w mouch mawjouda fi freq nfas5ouha  5ater manajmouch ne5dmou beha  w  resulta = 195  fas5neha  
+# ------------------------------------------------------------
+orphan_mask = ~sev["IDpol"].isin(freq["IDpol"])
+print("Orphan claim rows dropped:", orphan_mask.sum())
+sev = sev[~orphan_mask].copy()
+
+# ------------------------------------------------------------
+# 4. Aggregate severity to ONE row per policy
+#  #lena el polici  eli 3andha akther men 2 claim najm3ou el montant mte3hom w twali star w7ed
+#SevRows: number of claim rows for that policy.
+#TotalClaimAmount: sum of the claim amounts for that policy.
+# ------------------------------------------------------------
+sev_agg = (
+    sev.groupby("IDpol")["ClaimAmount"]
+       .agg(SevRows="size", TotalClaimAmount="sum")
+       .reset_index()
+)
+
+
+#lena 3malna left joint bin freq w sev_agg  w 7atinehom fi jadwel aker esmou df  donc wala 3ana freq ama  zyed les colonne SevRows w TotalClaimAmount
+# w ay IDpol l9ineha fi freq w mal9inahech fi sev 3awthna SevRows w amount b 0
+
+df = freq.merge(sev_agg, on="IDpol", how="left", validate="one_to_one")
+df["SevRows"] = df["SevRows"].fillna(0).astype(int)
+df["TotalClaimAmount"] = df["TotalClaimAmount"].fillna(0.0)
+
+print(df)
+# ------------------------------------------------------------
+# 5. RECONCILIATION: do the two files agree on claim counts?
+#tawa bech nchoufou ken l claimNB fi freq kima SevRows wala le  
+#7atina 3 condition ken 3 tal3ou False dont = consistent ma3neha jawha behi claim ethika
+#sino  ken True fi wa7da fehom ma3neha feha mochkla deja l9ina 9116 claim majouda fi freq w mouch mawjouda fi sev ma3neha m3andhech montant 
+# ------------------------------------------------------------
+mismatch = pd.Series(
+    np.select(
+        [
+            (df["ClaimNb"] > 0) & (df["SevRows"] == 0),
+            (df["ClaimNb"] == 0) & (df["SevRows"] > 0),
+            (df["ClaimNb"] > 0) & (df["SevRows"] > 0) & (df["ClaimNb"] != df["SevRows"]),
+        ],
+        ["claims in freq, none in sev", "claims in sev, none in freq", "both, different counts"],
+        default="consistent",
+    ),
+    index=df.index,
+)
+print(mismatch.value_counts())
+print("sum ClaimNb:", df["ClaimNb"].sum(), "| sum SevRows:", df["SevRows"].sum())
+
+# ------------------------------------------------------------
+# 6. Exposure > 1: investigate first
+# lena bech nchoufou les periode eli akther men  year 
+# ------------------------------------------------------------
+over = df["Exposure"] > 1
+print("Exposure > 1:", over.sum(), f"({over.mean():.3%})")
+print(df.loc[over, ["ClaimNb", "Exposure"]].describe())
+
+# YOUR DECISION: pick one and write it in your decision log
+EXPOSURE_POLICY = "keep"          # "keep" | "drop" | "cap"
+if EXPOSURE_POLICY == "drop":
+    df = df[~over].copy()
+elif EXPOSURE_POLICY == "cap":
+    df["Exposure"] = df["Exposure"].clip(upper=1)
+
+# ------------------------------------------------------------
+# 7. Tails of VehAge / DrivAge (inspect only, no change yet)
+# ------------------------------------------------------------
+print(df["VehAge"].value_counts().sort_index().tail(15))
+print(df["DrivAge"].value_counts().sort_index().tail(15))
+
+# ------------------------------------------------------------
+# 8. Targets and derived columns (row-wise, safe before the split)
+# tawa bech nzidou les colonne el bech ysahlou 3lina nreniw el model 
+# ------------------------------------------------------------
+df["Frequency"] = df["ClaimNb"] / df["Exposure"]
+df["HasClaim"] = (df["ClaimNb"] > 0).astype(int)
+df["PurePremium"] = df["TotalClaimAmount"] / df["Exposure"]
+
+# AvgSeverity uses SevRows (claims that actually have an amount),
+# NOT ClaimNb, because only those rows contribute to TotalClaimAmount
+df["AvgSeverity"] = np.where(df["SevRows"] > 0, df["TotalClaimAmount"] / df["SevRows"], np.nan)
+
+df["logDensity"] = np.log(df["Density"])
+df["logExposure"] = np.log(df["Exposure"])
+
+# ------------------------------------------------------------
+# 9. Validation: fail loudly if the clean table is broken
+# ------------------------------------------------------------
+def validate(d):
+    assert d["IDpol"].is_unique
+    assert d.isnull().drop(columns="AvgSeverity").sum().sum() == 0
+    assert (d["Exposure"] > 0).all()
+    assert (d["ClaimNb"] >= 0).all()
+    assert (d["TotalClaimAmount"] >= 0).all()
+    assert ((d["SevRows"] > 0) == d["AvgSeverity"].notna()).all()
+    print("validation passed:", d.shape)
+
+validate(df)
+print(df.head())
+
+--- OUTPUT ---
+VehBrand ['B1', 'B10', 'B11', 'B12', 'B13', 'B14', 'B2', 'B3', 'B4', 'B5', 'B6']
+VehGas ['Diesel', 'Regular']
+Area ['A', 'B', 'C', 'D', 'E', 'F']
+Region ['Alsace', 'Aquitaine', 'Auvergne', 'Basse-Normandie', 'Bourgogne', 'Bretagne', 'Centre', 'Champagne-Ardenne', 'Corse', 'Franche-Comte', 'Haute-Normandie', 'Ile-de-France', 'Languedoc-Roussillon', 'Limousin', 'Midi-Pyrenees', 'Nord-Pas-de-Calais', 'Pays-de-la-Loire', 'Picardie', 'Poitou-Charentes', "Provence-Alpes-Cotes-D'Azur", 'Rhone-Alpes']
+Orphan claim rows dropped: 195
+          IDpol  ClaimNb  Exposure  VehPower  VehAge  DrivAge  BonusMalus  \
+0             1        1   0.10000         5       0       55          50   
+1             3        1   0.77000         5       0       55          50   
+2             5        1   0.75000         6       2       52          50   
+3            10        1   0.09000         7       0       46          50   
+4            11        1   0.84000         7       0       46          50   
+...         ...      ...       ...       ...     ...      ...         ...   
+678008  6114326        0   0.00274         4       0       54          50   
+678009  6114327        0   0.00274         4       0       41          95   
+678010  6114328        0   0.00274         6       2       45          50   
+678011  6114329        0   0.00274         4       0       60          50   
+678012  6114330        0   0.00274         7       6       29          54   
+
+       VehBrand   VehGas Area  Density                       Region  SevRows  \
+0           B12  Regular    D     1217                  Rhone-Alpes        0   
+1           B12  Regular    D     1217                  Rhone-Alpes        0   
+2           B12   Diesel    B       54                     Picardie        0   
+3           B12   Diesel    B       76                    Aquitaine        0   
+4           B12   Diesel    B       76                    Aquitaine        0   
+...         ...      ...  ...      ...                          ...      ...   
+678008      B12  Regular    E     3317  Provence-Alpes-Cotes-D'Azur        0   
+678009      B12  Regular    E     9850                Ile-de-France        0   
+678010      B12   Diesel    D     1323                  Rhone-Alpes        0   
+678011      B12  Regular    B       95                    Bourgogne        0   
+678012      B12   Diesel    B       65                    Aquitaine        0   
+
+        TotalClaimAmount  
+0                    0.0  
+1                    0.0  
+2                    0.0  
+3                    0.0  
+4                    0.0  
+...                  ...  
+678008               0.0  
+678009               0.0  
+678010               0.0  
+678011               0.0  
+678012               0.0  
+
+[678013 rows x 14 columns]
+consistent                     668896
+claims in freq, none in sev      9116
+both, different counts              1
+Name: count, dtype: int64
+sum ClaimNb: 36102 | sum SevRows: 26444
+Exposure > 1: 1224 (0.181%)
+           ClaimNb     Exposure
+count  1224.000000  1224.000000
+mean      0.044118     1.113840
+std       0.217052     0.159296
+min       0.000000     1.010000
+25%       0.000000     1.020000
+50%       0.000000     1.040000
+75%       0.000000     1.150000
+max       2.000000     2.010000
+VehAge
+68      2
+69      4
+70      3
+71      1
+76      1
+78      1
+79      1
+80      3
+81      3
+82      1
+83      2
+84      1
+85      1
+99     23
+100    25
+Name: count, dtype: int64
+DrivAge
+86     319
+87     280
+88     229
+89     198
+90     167
+91     121
+92      66
+93      55
+94      32
+95      24
+96      15
+97      10
+98       5
+99      70
+100      3
+Name: count, dtype: int64
+validation passed: (678013, 20)
+   IDpol  ClaimNb  Exposure  VehPower  VehAge  DrivAge  BonusMalus VehBrand  \
+0      1        1      0.10         5       0       55          50      B12   
+1      3        1      0.77         5       0       55          50      B12   
+2      5        1      0.75         6       2       52          50      B12   
+3     10        1      0.09         7       0       46          50      B12   
+4     11        1      0.84         7       0       46          50      B12   
+
+    VehGas Area  Density       Region  SevRows  TotalClaimAmount  Frequency  \
+0  Regular    D     1217  Rhone-Alpes        0               0.0  10.000000   
+1  Regular    D     1217  Rhone-Alpes        0               0.0   1.298701   
+2   Diesel    B       54     Picardie        0               0.0   1.333333   
+3   Diesel    B       76    Aquitaine        0               0.0  11.111111   
+4   Diesel    B       76    Aquitaine        0               0.0   1.190476   
+
+   HasClaim  PurePremium  AvgSeverity  logDensity  logExposure  
+0         1          0.0          NaN    7.104144    -2.302585  
+1         1          0.0          NaN    7.104144    -0.261365  
+2         1          0.0          NaN    3.988984    -0.287682  
+3         1          0.0          NaN    4.330733    -2.407946  
+4         1          0.0          NaN    4.330733    -0.174353  
+
+
+===== CELL 2 [code] =====
+df["MissingSev"] = (df["ClaimNb"] > 0) & (df["SevRows"] == 0)
+claimants = df[df["ClaimNb"] > 0]          # compare claimants with claimants only
+
+num_cols = ["ClaimNb", "Exposure", "VehAge", "DrivAge", "BonusMalus", "VehPower", "Density"]
+print(claimants.groupby("MissingSev").size())
+print(claimants.groupby("MissingSev")[num_cols].mean().round(3))
+
+for col in ["VehGas", "Area"]:
+    print(pd.crosstab(claimants["MissingSev"], claimants[col], normalize="index").round(3))
+
+# does the chance of "no amount" depend on how many claims the policy has?
+print(claimants.groupby("ClaimNb")["MissingSev"].agg(["mean", "size"]).round(3))
+--- OUTPUT ---
+MissingSev
+False    24944
+True      9116
+dtype: int64
+            ClaimNb  Exposure  VehAge  DrivAge  BonusMalus  VehPower   Density
+MissingSev                                                                    
+False         1.060     0.693   7.386   45.140      64.930     6.469  1984.306
+True          1.059     0.505   4.084   49.262      58.084     6.285  1918.415
+VehGas      Diesel  Regular
+MissingSev                 
+False        0.509    0.491
+True         0.330    0.670
+Area            A      B      C      D      E      F
+MissingSev                                          
+False       0.130  0.101  0.270  0.242  0.228  0.029
+True        0.175  0.121  0.288  0.203  0.175  0.038
+          mean   size
+ClaimNb              
+1        0.268  32178
+2        0.272   1784
+3        0.244     82
+4        0.286      7
+5        0.000      2
+6        0.000      1
+8        0.000      1
+9        0.000      1
+11       0.333      3
+16       0.000      1
+
+
+===== CELL 3 [code] =====
+bad = df[(df["ClaimNb"] > 0) & (df["SevRows"] > 0) & (df["ClaimNb"] != df["SevRows"])]
+print(bad[["IDpol", "ClaimNb", "SevRows", "TotalClaimAmount", "Exposure"]])
+print(sev[sev["IDpol"].isin(bad["IDpol"])])
+--- OUTPUT ---
+          IDpol  ClaimNb  SevRows  TotalClaimAmount  Exposure
+567077  4158255        2        1            543.33      0.82
+         IDpol  ClaimAmount
+22593  4158255       543.33
+
+
+===== CELL 4 [code] =====
+print(df["VehAge"].value_counts().sort_index().tail(40).to_string())
+print(df["DrivAge"].value_counts().sort_index().tail(20).to_string())
+
+def rate(d):
+    return pd.Series({
+        "policies": len(d),
+        "exposure": d["Exposure"].sum(),
+        "claims": d["ClaimNb"].sum(),
+        "freq": d["ClaimNb"].sum() / d["Exposure"].sum(),   # sum/sum, not mean of ratios
+    })
+
+groups = {
+    "VehAge == 99":  df["VehAge"] == 99,
+    "VehAge 60-98":  df["VehAge"].between(60, 98),
+    "VehAge < 60":   df["VehAge"] < 60,
+}
+print(pd.DataFrame({name: rate(df[mask]) for name, mask in groups.items()}).T.round(4))
+
+# does the age-99 group look like a different population?
+v99 = df[df["VehAge"] == 99]
+print(v99[["VehPower", "DrivAge", "BonusMalus"]].describe().round(2))
+print(pd.DataFrame({
+    "VehAge 99": v99["VehBrand"].value_counts(normalize=True),
+    "all":       df["VehBrand"].value_counts(normalize=True),
+}).round(3))
+--- OUTPUT ---
+VehAge
+38     36
+39     25
+40     16
+41      8
+42     13
+43     15
+44     15
+45     12
+46     19
+47     14
+48     17
+49     12
+50      8
+51      4
+52      6
+53      2
+54      2
+55      1
+59      2
+60      1
+62      1
+63      1
+64      1
+65      2
+66      2
+68      2
+69      4
+70      3
+71      1
+76      1
+78      1
+79      1
+80      3
+81      3
+82      1
+83      2
+84      1
+85      1
+99     23
+100    25
+DrivAge
+81     1577
+82     1211
+83      849
+84      578
+85      371
+86      319
+87      280
+88      229
+89      198
+90      167
+91      121
+92       66
+93       55
+94       32
+95       24
+96       15
+97       10
+98        5
+99       70
+100       3
+              policies     exposure   claims    freq
+VehAge == 99      23.0      12.7455      1.0  0.0785
+VehAge 60-98      32.0      15.7400      2.0  0.1271
+VehAge < 60   677933.0  358455.8100  36099.0  0.1007
+       VehPower  DrivAge  BonusMalus
+count     23.00    23.00       23.00
+mean       6.83    37.91       64.61
+std        1.97    11.84       17.64
+min        4.00    19.00       50.00
+25%        5.50    30.50       50.00
+50%        7.00    37.00       54.00
+75%        7.00    46.00       76.00
+max       11.00    64.00      100.00
+          VehAge 99    all
+VehBrand                  
+B1            0.435  0.240
+B10             NaN  0.026
+B11           0.087  0.020
+B12             NaN  0.245
+B13             NaN  0.018
+B14             NaN  0.006
+B2            0.217  0.236
+B3            0.087  0.079
+B4              NaN  0.037
+B5            0.043  0.051
+B6            0.130  0.042
+
+
+===== CELL 5 [code] =====
+over = df["Exposure"] > 1
+
+rate_normal = df.loc[~over, "ClaimNb"].sum() / df.loc[~over, "Exposure"].sum()
+
+observed        = df.loc[over, "ClaimNb"].sum()
+expected_full   = rate_normal * df.loc[over, "Exposure"].sum()   # if claims cover the full exposure
+expected_1year  = rate_normal * over.sum() * 1.0                 # if claims cover only 1 year
+
+print(f"rows: {over.sum()}  observed claims: {observed}")
+print(f"expected if ClaimNb covers full Exposure: {expected_full:.1f}")
+print(f"expected if ClaimNb covers only 1 year:   {expected_1year:.1f}")
+--- OUTPUT ---
+rows: 1224  observed claims: 54
+expected if ClaimNb covers full Exposure: 137.6
+expected if ClaimNb covers only 1 year:   123.5
+
+
+===== CELL 6 [code] =====
+df = df[~over].copy()
+print("rows after dropping Exposure > 1:", len(df))   # 678013 - 1224 = 676789
+--- OUTPUT ---
+rows after dropping Exposure > 1: 676789
+
+
+===== CELL 7 [code] =====
+validate(df)
+df.to_csv("../data/processed/policies_clean.csv", index=False)
+--- OUTPUT ---
+validation passed: (676789, 21)
+
+
+===== CELL 8 [code] =====
+
+
+===== CELL 9 [code] =====
+# A) How many partially-missing policies would independence predict?
+cl = df[df["ClaimNb"] > 0].copy()
+p = cl["MissingSev"].mean()                                   # share of claimant policies with no amounts
+multi = cl[cl["ClaimNb"] >= 2]
+expected_partial = (1 - p**multi["ClaimNb"] - (1 - p)**multi["ClaimNb"]).sum()
+observed_partial = ((multi["SevRows"] > 0) & (multi["SevRows"] < multi["ClaimNb"])).sum()
+print(f"expected partial under independence: {expected_partial:.0f} | observed: {observed_partial}")
+
+# B) Missing share by exposure, vehicle age, fuel
+cl["ExpBin"] = pd.cut(cl["Exposure"], [0, 0.1, 0.25, 0.5, 0.75, 1.0])
+cl["VehAgeBin"] = pd.cut(cl["VehAge"], [-1, 0, 1, 2, 5, 10, 15, 100])
+for col in ["ExpBin", "VehAgeBin", "VehGas"]:
+    print(cl.groupby(col, observed=True)["MissingSev"].agg(["mean", "size"]).round(3), "\n")
+--- OUTPUT ---
+expected partial under independence: 760 | observed: 1
+              mean   size
+ExpBin                   
+(0.0, 0.1]   0.627   3272
+(0.1, 0.25]  0.412   3485
+(0.25, 0.5]  0.232   6071
+(0.5, 0.75]  0.213   5602
+(0.75, 1.0]  0.194  15579 
+
+            mean  size
+VehAgeBin             
+(-1, 0]    0.776  4915
+(0, 1]     0.209  2738
+(1, 2]     0.195  2584
+(2, 5]     0.207  6345
+(5, 10]    0.186  9296
+(10, 15]   0.145  6261
+(15, 100]  0.146  1870 
+
+          mean   size
+VehGas               
+Diesel   0.192  15690
+Regular  0.333  18319 
+
+
+
+===== CELL 10 [code] =====
+validate(df)
+df.to_csv("../data/processed/policies_clean.csv", index=False)
+--- OUTPUT ---
+validation passed: (676789, 21)
+
+
+===== CELL 11 [code] =====
+print(freq_raw.shape, freq.shape, df.shape)             # (678013, 12) (678013, 12) (676789, 21)
+print(freq_raw["IDpol"].dtype, "->", freq["IDpol"].dtype)   # float64 -> int64
+print((freq["Exposure"] > 1).sum(), (df["Exposure"] > 1).sum())   # 1224 -> 0
+print(sorted(set(df.columns) - set(freq.columns)))      # the 9 columns we added
+
+df.head()
+
+--- OUTPUT ---
+(678013, 12) (678013, 12) (676789, 21)
+float64 -> int64
+1224 0
+['AvgSeverity', 'Frequency', 'HasClaim', 'MissingSev', 'PurePremium', 'SevRows', 'TotalClaimAmount', 'logDensity', 'logExposure']
+
+--- OUTPUT ---
+   IDpol  ClaimNb  Exposure  VehPower  VehAge  DrivAge  BonusMalus VehBrand  \
+0      1        1      0.10         5       0       55          50      B12   
+1      3        1      0.77         5       0       55          50      B12   
+2      5        1      0.75         6       2       52          50      B12   
+3     10        1      0.09         7       0       46          50      B12   
+4     11        1      0.84         7       0       46          50      B12   
+
+    VehGas Area  ...       Region SevRows  TotalClaimAmount  Frequency  \
+0  Regular    D  ...  Rhone-Alpes       0               0.0  10.000000   
+1  Regular    D  ...  Rhone-Alpes       0               0.0   1.298701   
+2   Diesel    B  ...     Picardie       0               0.0   1.333333   
+3   Diesel    B  ...    Aquitaine       0               0.0  11.111111   
+4   Diesel    B  ...    Aquitaine       0               0.0   1.190476   
+
+   HasClaim  PurePremium  AvgSeverity  logDensity  logExposure  MissingSev  
+0         1          0.0          NaN    7.104144    -2.302585        True  
+1         1          0.0          NaN    7.104144    -0.261365        True  
+2         1          0.0          NaN    3.988984    -0.287682        True  
+3         1          0.0          NaN    4.330733    -2.407946        True  
+4         1          0.0          NaN    4.330733    -0.174353        True  
+
+[5 rows x 21 columns]
+
+===== CELL 12 [code] =====
+cl
+--- OUTPUT ---
+          IDpol  ClaimNb  Exposure  VehPower  VehAge  DrivAge  BonusMalus  \
+0             1        1      0.10         5       0       55          50   
+1             3        1      0.77         5       0       55          50   
+2             5        1      0.75         6       2       52          50   
+3            10        1      0.09         7       0       46          50   
+4            11        1      0.84         7       0       46          50   
+...         ...      ...       ...       ...     ...      ...         ...   
+677203  6113521        1      0.18         4       1       26          60   
+677475  6113793        1      0.14         7       2       51          50   
+677499  6113817        1      0.17         4       0       35          51   
+677516  6113834        2      0.17        15       3       36          50   
+677653  6113971        1      0.13         7      10       39          50   
+
+       VehBrand   VehGas Area  ...  TotalClaimAmount  Frequency  HasClaim  \
+0           B12  Regular    D  ...              0.00  10.000000         1   
+1           B12  Regular    D  ...              0.00   1.298701         1   
+2           B12   Diesel    B  ...              0.00   1.333333         1   
+3           B12   Diesel    B  ...              0.00  11.111111         1   
+4           B12   Diesel    B  ...              0.00   1.190476         1   
+...         ...      ...  ...  ...               ...        ...       ...   
+677203      B12   Diesel    C  ...           1324.40   5.555556         1   
+677475      B12   Diesel    C  ...           1769.88   7.142857         1   
+677499      B12  Regular    D  ...           1288.28   5.882353         1   
+677516      B12  Regular    C  ...          12230.40  11.764706         1   
+677653       B4  Regular    D  ...           1452.00   7.692308         1   
+
+         PurePremium  AvgSeverity  logDensity  logExposure  MissingSev  \
+0           0.000000          NaN    7.104144    -2.302585        True   
+1           0.000000          NaN    7.104144    -0.261365        True   
+2           0.000000          NaN    3.988984    -0.287682        True   
+3           0.000000          NaN    4.330733    -2.407946        True   
+4           0.000000          NaN    4.330733    -0.174353        True   
+...              ...          ...         ...          ...         ...   
+677203   7357.777778      1324.40    5.739793    -1.714798       False   
+677475  12642.000000      1769.88    5.181784    -1.966113       False   
+677499   7578.117647      1288.28    7.449498    -1.771957       False   
+677516  71943.529412      6115.20    5.198497    -1.771957       False   
+677653  11169.230769      1452.00    6.709304    -2.040221       False   
+
+             ExpBin  VehAgeBin  
+0        (0.0, 0.1]    (-1, 0]  
+1       (0.75, 1.0]    (-1, 0]  
+2       (0.5, 0.75]     (1, 2]  
+3        (0.0, 0.1]    (-1, 0]  
+4       (0.75, 1.0]    (-1, 0]  
+...             ...        ...  
+677203  (0.1, 0.25]     (0, 1]  
+677475  (0.1, 0.25]     (1, 2]  
+677499  (0.1, 0.25]    (-1, 0]  
+677516  (0.1, 0.25]     (2, 5]  
+677653  (0.1, 0.25]    (5, 10]  
+
+[34009 rows x 23 columns]

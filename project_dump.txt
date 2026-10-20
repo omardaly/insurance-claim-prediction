@@ -1,0 +1,49 @@
+
+===== notebooks\01_understanding.ipynb =====
+
+--- cell 0 [code] ---
+import pandas as pd
+
+freq = pd.read_csv("../data/raw/freMTPL2freq.csv")
+sev = pd.read_csv("../data/raw/freMTPL2sev.csv")
+
+print("freq:", freq.shape)
+print("sev:", sev.shape)
+
+freq.head()
+>>> OUTPUT:
+freq: (678013, 12)
+sev: (26639, 2)
+
+>>> OUTPUT:
+   IDpol  ClaimNb  Exposure  VehPower  VehAge  DrivAge  BonusMalus VehBrand  \
+0    1.0        1      0.10         5       0       55          50      B12   
+1    3.0        1      0.77         5       0       55          50      B12   
+2    5.0        1      0.75         6       2       52          50      B12   
+3   10.0        1      0.09         7       0       46          50      B12   
+4   11.0        1      0.84         7       0       46          50      B12   
+
+    VehGas Area  Density       Region  
+0  Regular    D     1217  Rhone-Alpes  
+1  Regular    D     1217  Rhone-Alpes  
+2   Diesel    B       54     Picardie  
+3   Diesel    B       76    Aquitaine  
+4   Diesel    B       76    Aquitaine  
+
+===== notebooks\02_cleaning.ipynb =====
+
+--- cell 0 [code] ---
+import pandas as pd
+import numpy as np
+
+freq_raw = pd.read_csv("../data/raw/freMTPL2freq.csv")
+sev_raw = pd.read_csv("../data/raw/freMTPL2sev.csv")
+
+freq = freq_raw.copy()
+sev = sev_raw.copy()
+print(freq.shape)
+print(sev.shape)
+>>> OUTPUT:
+(678013, 12)
+(26639, 2)
+
