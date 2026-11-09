@@ -1,13 +1,15 @@
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
+sys.path.append(str(Path(__file__).resolve().parent))
 
-import numpy as np
 import pandas as pd
 import streamlit as st
 from src import scoring
+import ui
 
-st.set_page_config(page_title="Claim frequency model", layout="wide")
+st.set_page_config(page_title="Claim frequency model", page_icon="📈", layout="wide")
+ui.apply()
 
 
 @st.cache_resource
@@ -16,15 +18,19 @@ def get_bundle():
 
 
 b = get_bundle()
-page = st.sidebar.radio("Page", ["Score one policy", "Score a CSV", "Model card"])
+
+ui.show('<div class="brand"><div class="name">Claim frequency model</div>'
+        '<div class="tag">Motor insurance · GBM v2</div></div>', sidebar=True)
+ICONS = {"Score one policy": "🔎  Score one policy", "Score a CSV": "📄  Score a CSV", "Model card": "📊  Model card"}
+page = st.sidebar.radio("Navigation", list(ICONS), format_func=lambda p: ICONS[p], label_visibility="collapsed")
 st.sidebar.caption(f"Model version: {b['version']}")
 st.sidebar.caption("Claim frequency only. This is not a premium.")
 
 
 # ---------------------------------------------------------------- page 1
 if page == "Score one policy":
-    st.title("Score one policy")
-    st.caption("Expected claims per year for a policy observed for a full year (Exposure = 1).")
+    ui.show(ui.hero("Score one policy",
+                    "Expected claims per year for a policy observed for a full year (Exposure = 1)"))
     lv, rg = b["levels"], b["ranges"]
 
     with st.form("policy"):
@@ -37,7 +43,7 @@ if page == "Score one policy":
         veh_gas = c2.selectbox("Fuel", lv["VehGas"])
         density = c3.number_input("Density (inhabitants/km2)", rg["Density"][0], rg["Density"][1], 500, 1)
         region = c3.selectbox("Region", lv["Region"])
-        submitted = st.form_submit_button("Score")
+        submitted = st.form_submit_button("Score this policy")
 
     if submitted:
         policy = {"VehPower": veh_power, "VehAge": veh_age, "DrivAge": driv_age, "BonusMalus": bonus,
@@ -47,32 +53,28 @@ if page == "Score one policy":
         if res["errors"]:
             st.error(res["errors"])
         else:
-            m1, m2, m3 = st.columns(3)
-            m1.metric("Annual claim rate", f"{res['annual_rate']:.3f}")
-            m2.metric("Relative to portfolio average", f"{res['relativity']:.2f}x")
-            m3.metric("Risk tier (1 = lowest, 10 = highest)", int(res["risk_tier"]))
-            st.caption(f"Expected claims per year, for policies like this one observed for a full year. "
-                       f"The portfolio average is {b['reference_annual_rate']:.3f}. "
-                       "This is a risk level for a group of similar policies, not a statement about one customer.")
+            tier = int(res["risk_tier"])
+            rate, rel = res["annual_rate"], res["relativity"]
+            ui.show(ui.kpi_row([
+                ui.kpi("Annual claim rate", f"{rate:.3f}", f"about {rate * 100:.1f} claims per 100 policies per year", "#0B6E99"),
+                ui.kpi("Relative to portfolio", f"{rel:.2f}×", f"portfolio average {b['reference_annual_rate']:.3f}", "#14A3A3"),
+                ui.kpi("Risk tier", f"{tier} / 10", ui.tier_label(tier), ui.TIER_COLORS[tier - 1]),
+            ]))
+            ui.show(ui.tier_scale(tier))
+            st.caption("A risk level for a group of similar policies, observed for a full year. It is not a statement "
+                       "about one customer.")
 
             for w in [w for w in res["warnings"].split("; ") if w]:
                 st.warning(w)
 
-            ex = scoring.explain(b, policy)
-            rows = [("Model base level (full year)", "", f"{ex['base_level']:.4f}")]
-            rows += [(name, str(val), f"x {fac:.2f}") for name, val, fac in ex["drivers"]]
-            rows += [("All other characteristics combined", "", f"x {ex['other_factor']:.2f}")]
-            rows += [("= Annual claim rate", "", f"{ex['annual_rate']:.4f}")]
-            st.subheader("How this prediction is composed")
-            st.dataframe(pd.DataFrame(rows, columns=["Component", "Value", "Factor"]), hide_index=True)
-            st.caption("The factors multiply the model's base level. They describe how this prediction is built; "
-                       "they are associations in the data, not the effect of changing a characteristic.")
+            ui.show(ui.factors_card(scoring.explain(b, policy)))
 
 
 # ---------------------------------------------------------------- page 2
 elif page == "Score a CSV":
-    st.title("Score a CSV file")
-    st.caption("One policy per row. Required columns: " + ", ".join(scoring.INPUTS) +
+    ui.show(ui.hero("Score a CSV file",
+                    "One policy per row. Upload a file like freMTPL2freq.csv, or just the model inputs."))
+    st.caption("Required columns: " + ", ".join(scoring.INPUTS) +
                ". Other columns (IDpol, Area, ...) are kept and ignored by the model. "
                "If the file also has Exposure and ClaimNb, the app compares the model with the actual claims.")
 
@@ -81,7 +83,7 @@ elif page == "Score a CSV":
                               "Region": b["levels"]["Region"][0]}])
     st.download_button("Download an example file", template.to_csv(index=False), "example_policies.csv", "text/csv")
 
-    up = st.file_uploader("Upload a CSV", type="csv")
+    up = st.file_uploader("Upload a CSV (up to 50,000 rows)", type="csv")
     if up is not None:
         d = pd.read_csv(up)
         missing = [c for c in scoring.INPUTS if c not in d.columns]
@@ -93,53 +95,74 @@ elif page == "Score a CSV":
             with st.spinner("Scoring..."):
                 res = scoring.score(b, d)
             out = pd.concat([d.reset_index(drop=True), res], axis=1)
+            if "Exposure" not in d.columns:
+                out = out.drop(columns=["expected_claims"])
             n_err = int((res["errors"] != "").sum())
             n_warn = int((res["warnings"] != "").sum())
-            st.write(f"{len(out):,} rows | {len(out) - n_err:,} scored | {n_err:,} with errors | {n_warn:,} with warnings")
+
+            ui.show(ui.kpi_row([
+                ui.kpi("Rows", f"{len(out):,}", "in the file", "#0B6E99"),
+                ui.kpi("Scored", f"{len(out) - n_err:,}", "got an annual rate", "#1B9E77"),
+                ui.kpi("Errors", f"{n_err:,}", "no rate, see the errors column", "#C93A2E" if n_err else "#1B9E77"),
+                ui.kpi("Warnings", f"{n_warn:,}", "scored, read with care", "#F2A33C" if n_warn else "#1B9E77"),
+            ]))
             if n_err:
                 st.warning("Rows with errors get no rate. See the 'errors' column.")
 
             ok = res["annual_rate"].notna()
-            if ok.any():
-                st.subheader("Risk tiers in this file")
-                tiers = res.loc[ok, "risk_tier"].astype(int).value_counts().sort_index()
-                st.bar_chart(tiers)
-                c1, c2 = st.columns(2)
-                c1.metric("Mean annual rate", f"{res.loc[ok, 'annual_rate'].mean():.4f}")
-                c2.metric("Portfolio reference", f"{b['reference_annual_rate']:.4f}")
+            tab_sum, tab_eval, tab_tbl = st.tabs(["Summary", "Model vs actual", "Results table"])
 
-            if {"ClaimNb", "Exposure"}.issubset(d.columns):
-                ev = scoring.evaluate(b, out)
+            with tab_sum:
+                if ok.any():
+                    ui.show(ui.kpi_row([
+                        ui.kpi("Mean annual rate", f"{res.loc[ok, 'annual_rate'].mean():.4f}", "this file", "#0B6E99"),
+                        ui.kpi("Portfolio reference", f"{b['reference_annual_rate']:.4f}", "training portfolio", "#14A3A3"),
+                    ]))
+                    ui.show(ui.tier_bars(res.loc[ok, "risk_tier"].astype(int).value_counts().to_dict()))
+                else:
+                    st.info("No rows could be scored.")
+
+            with tab_eval:
+                ev = scoring.evaluate(b, out) if {"ClaimNb", "Exposure"}.issubset(d.columns) else None
                 if ev:
-                    st.subheader("Model vs actual claims in this file")
-                    m1, m2, m3 = st.columns(3)
-                    m1.metric("Model deviance", f"{ev['deviance_model']:.4f}")
-                    m2.metric("Baseline deviance", f"{ev['deviance_baseline']:.4f}")
-                    m3.metric("Actual / predicted claims", f"{ev['actual_over_predicted']:.3f}")
+                    gain = (ev["deviance_baseline"] - ev["deviance_model"]) / ev["deviance_baseline"]
+                    ui.show(ui.kpi_row([
+                        ui.kpi("Model deviance", f"{ev['deviance_model']:.4f}", "lower is better", "#14A3A3"),
+                        ui.kpi("Baseline deviance", f"{ev['deviance_baseline']:.4f}", "same rate for everyone", "#8A99AD"),
+                        ui.kpi("Improvement", f"{100 * gain:.1f}%", "model vs baseline", "#1B9E77"),
+                        ui.kpi("Actual / predicted", f"{ev['actual_over_predicted']:.3f}", "1.000 = perfect level", "#0B6E99"),
+                    ]))
                     st.dataframe(ev["calibration"])
-                    st.caption(f"{ev['rows']:,} rows with a valid exposure in (0, 1]. Lower deviance is better; "
-                               "baseline = the same rate for everyone, scaled by exposure. **If this file contains "
-                               "policies the model was trained on (for example the full freMTPL2freq file), these "
-                               "figures are optimistic.** The unbiased test-set figures are on the model card.")
+                    st.caption(f"{ev['rows']:,} rows with a valid exposure in (0, 1]. **If this file contains policies the "
+                               "model was trained on (for example the full freMTPL2freq file), these figures are "
+                               "optimistic.** The unbiased test-set figures are on the model card.")
+                else:
+                    st.info("Add the columns Exposure and ClaimNb to compare the model with the actual claims.")
 
-            st.dataframe(out.head(200))
-            st.download_button("Download all results", out.to_csv(index=False), "scored_policies.csv", "text/csv")
+            with tab_tbl:
+                st.dataframe(out.head(200))
+                st.caption("Showing the first 200 rows. The download has all rows.")
+                st.download_button("Download all results", out.to_csv(index=False), "scored_policies.csv", "text/csv")
+
 
 # ---------------------------------------------------------------- page 3
 else:
-    st.title("Model card")
+    ui.show(ui.hero("Model card", "What the model predicts, how well it works, and where to be careful"))
     st.markdown("**What it predicts.** The expected number of claims per policy-year (claim frequency), from vehicle, "
                 "driver and region characteristics. A gradient boosting model with Poisson loss (GBM v2). "
                 "There is **no severity model**, so nothing here is a claim cost or a premium.")
 
     st.subheader("Performance on the held-out test set (evaluated once)")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Baseline deviance", "0.3307")
-    c2.metric("GBM v1 (no exposure)", "0.3025")
-    c3.metric("GBM v2 (this model)", "0.2892")
-    st.caption("Mean Poisson deviance, lower is better. v2 is 12.5% lower than the baseline (same rate for everyone). "
-               "95% bootstrap interval for the gain over the baseline: 0.0386 to 0.0449. Cross-validation on the training "
-               "set gave 0.2907 +/- 0.0028 for v2.")
+    ui.show(ui.kpi_row([
+        ui.kpi("Baseline deviance", "0.3307", "same rate for everyone", "#8A99AD"),
+        ui.kpi("GBM v1 (no exposure)", "0.3025", "earlier version", "#0B6E99"),
+        ui.kpi("GBM v2 (this model)", "0.2892", "12.5% below the baseline", "#14A3A3"),
+    ]))
+    ui.show(ui.compare_bars(
+        [("Baseline", 0.3307, "#8A99AD"), ("GBM v1", 0.3025, "#0B6E99"), ("GBM v2", 0.2892, "#14A3A3")],
+        "Mean Poisson deviance (lower is better)",
+        "95% bootstrap interval for the gain over the baseline: 0.0386 to 0.0449. "
+        "Cross-validation on the training set gave 0.2907 +/- 0.0028 for v2."))
 
     st.subheader("Calibration: actual vs predicted claims (test set, v2)")
     cal = pd.DataFrame({
@@ -180,4 +203,5 @@ else:
         "that keeps identical profiles together.\n"
         "- **Inputs outside the training data** (unknown brand or region, very old vehicles) are rejected or flagged."
     )
-    st.caption(f"Model version: {b['version']} | code tag: gbm_v2_frozen | figures come from the single test-set evaluation and cross-validation.")
+    st.caption(f"Model version: {b['version']} | code tag: gbm_v2_frozen | figures come from the single test-set "
+               "evaluation and cross-validation.")
