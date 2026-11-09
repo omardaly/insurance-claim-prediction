@@ -146,25 +146,26 @@ elif page == "Score a CSV":
 
 
 # ---------------------------------------------------------------- page 3
+# ---------------------------------------------------------------- page 3
 else:
     ui.show(ui.hero("Model card", "What the model predicts, how well it works, and where to be careful"))
     st.markdown("**What it predicts.** The expected number of claims per policy-year (claim frequency), from vehicle, "
-                "driver and region characteristics. A gradient boosting model with Poisson loss (GBM v2). "
+                "driver and region characteristics. A gradient boosting model with Poisson loss. "
                 "There is **no severity model**, so nothing here is a claim cost or a premium.")
 
     st.subheader("Performance on the held-out test set (evaluated once)")
     ui.show(ui.kpi_row([
-        ui.kpi("Baseline deviance", "0.3307", "same rate for everyone", "#8A99AD"),
-        ui.kpi("GBM v1 (no exposure)", "0.3025", "earlier version", "#0B6E99"),
-        ui.kpi("GBM v2 (this model)", "0.2892", "12.5% below the baseline", "#14A3A3"),
+        ui.kpi("Reference: same rate for everyone", "0.3307", "mean Poisson deviance", "#8A99AD"),
+        ui.kpi("This model", "0.2892", "mean Poisson deviance", "#14A3A3"),
+        ui.kpi("Improvement", "12.5%", "lower deviance than the reference", "#1B9E77"),
     ]))
     ui.show(ui.compare_bars(
-        [("Baseline", 0.3307, "#8A99AD"), ("GBM v1", 0.3025, "#0B6E99"), ("GBM v2", 0.2892, "#14A3A3")],
+        [("Reference", 0.3307, "#8A99AD"), ("This model", 0.2892, "#14A3A3")],
         "Mean Poisson deviance (lower is better)",
-        "95% bootstrap interval for the gain over the baseline: 0.0386 to 0.0449. "
-        "Cross-validation on the training set gave 0.2907 +/- 0.0028 for v2."))
+        "95% bootstrap interval for the gain over the reference: 0.0386 to 0.0449. "
+        "Cross-validation on the training set gave 0.2907 +/- 0.0028."))
 
-    st.subheader("Calibration: actual vs predicted claims (test set, v2)")
+    st.subheader("Calibration: actual vs predicted claims (test set)")
     cal = pd.DataFrame({
         "Exposure band": ["0-0.1", "0.1-0.25", "0.25-0.5", "0.5-0.75", "0.75-1.0"],
         "Policies": [25542, 19162, 26194, 18527, 45932],
@@ -176,8 +177,7 @@ else:
         "Group": ["Vehicle age 1+, exposure >= 0.75", "Vehicle age 1+, exposure >= 0.90",
                   "Vehicle age 0, exposure >= 0.75", "Vehicle age 0, exposure >= 0.90"],
         "Claims": [3318, 2725, 133, 30],
-        "v1 actual / predicted": [0.861, 0.842, 0.534, 0.419],
-        "v2 actual / predicted": [1.014, 1.010, 1.182, 1.008]})
+        "Actual / predicted": [1.014, 1.010, 1.182, 1.008]})
     st.dataframe(near, hide_index=True)
 
     st.subheader("How to read the annual rate")
@@ -187,7 +187,8 @@ else:
         "- If short records often follow a claim (for example a cancellation), full-year records are a selected group "
         "and the rate may **understate** the risk of a brand-new policy. The data has no cancellation reason, so this "
         "cannot be checked.\n"
-        "- Without the exposure input, the earlier version over-predicted near-full-year policies by about 15 to 20%.")
+        "- The exposure input is what keeps the annual rate calibrated: without it, near-full-year policies were "
+        "over-predicted by about 15% in testing.")
 
     st.subheader("Known limitations")
     st.markdown(
@@ -195,9 +196,8 @@ else:
         "133 and 30 claims, and the training folds gave 0.90 to 0.94.\n"
         "- **Ranking power is moderate.** Claims are rare and largely random: use the tier and rate for groups of "
         "policies, not to say whether one customer will claim. Cross-validated Gini (exposure-weighted, out-of-fold): "
-        "v1 0.338. For v2, 0.399 when policies are ranked at their own exposure, which mostly reflects the exposure "
-        "input, and 0.324 when ranked by the annual rate at Exposure = 1 (the quoting setting). On policies observed "
-        "for at least 0.75 of a year, v2 scores 0.322 against 0.317 for v1, higher in all five folds.\n"
+        "0.399 when policies are ranked at their own exposure, which mostly reflects the exposure input, and 0.324 "
+        "when ranked by the annual rate at Exposure = 1, which is how the risk tiers are built.\n"
         "- **Associations, not causes.** The factors explain how a prediction is composed.\n"
         "- **Tied records.** Many policies appear as split records with identical features. Evaluation used a split "
         "that keeps identical profiles together.\n"
