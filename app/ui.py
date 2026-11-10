@@ -55,6 +55,11 @@ header[data-testid="stHeader"]{background:transparent;}
 .tnum{font-size:.82rem;color:var(--muted);text-align:right;}
 [data-testid="stFormSubmitButton"] button,.stDownloadButton button{background:linear-gradient(120deg,#0B6E99,#14A3A3);color:#fff;border:0;border-radius:12px;padding:.55rem 1.4rem;font-weight:600;box-shadow:0 6px 16px rgba(11,110,153,.3);transition:transform .15s ease,box-shadow .15s ease;}
 [data-testid="stFormSubmitButton"] button:hover,.stDownloadButton button:hover{transform:translateY(-1px);color:#fff;box-shadow:0 10px 22px rgba(11,110,153,.35);}
+.userbox{padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.10);margin:8px 0 10px;}
+.userbox .uname{font-weight:700;font-size:.95rem;}
+.userbox .urole{font-size:.78rem;opacity:.8;}
+[data-testid="stSidebar"] .stButton button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);border-radius:10px;}
+[data-testid="stSidebar"] .stButton button:hover{background:rgba(255,255,255,.22);}
 </style>
 """
 
@@ -135,3 +140,4 @@ def factors_card(ex):
     note = ('<div class="note">Bars to the right raise the predicted rate, bars to the left lower it. These show how '
             'this prediction is built; they are associations in the data, not the effect of changing a characteristic.</div>')
     return '<div class="card"><div class="ctitle">How this prediction is composed</div>' + head + "".join(rows) + note + '</div>'
+

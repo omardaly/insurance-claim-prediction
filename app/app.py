@@ -6,10 +6,13 @@ sys.path.append(str(Path(__file__).resolve().parent))
 import pandas as pd
 import streamlit as st
 from src import scoring
-import ui
+from src import auth
+import ui 
+import auth_ui
 
 st.set_page_config(page_title="Claim frequency model", page_icon="📈", layout="wide")
 ui.apply()
+user = auth_ui.require_login()          # nothing below runs until someone is signed in
 
 
 @st.cache_resource
@@ -22,7 +25,10 @@ b = get_bundle()
 ui.show('<div class="brand"><div class="name">Claim frequency model</div>'
         '<div class="tag">Motor insurance · GBM v2</div></div>', sidebar=True)
 ICONS = {"Score one policy": "🔎  Score one policy", "Score a CSV": "📄  Score a CSV", "Model card": "📊  Model card"}
+if user["role"] == "admin":
+    ICONS["Users"] = "👥  Users"
 page = st.sidebar.radio("Navigation", list(ICONS), format_func=lambda p: ICONS[p], label_visibility="collapsed")
+auth_ui.sidebar_user(user)
 st.sidebar.caption(f"Model version: {b['version']}")
 st.sidebar.caption("Claim frequency only. This is not a premium.")
 
@@ -144,8 +150,37 @@ elif page == "Score a CSV":
                 st.caption("Showing the first 200 rows. The download has all rows.")
                 st.download_button("Download all results", out.to_csv(index=False), "scored_policies.csv", "text/csv")
 
+# ---------------------------------------------------------------- admin page
+elif page == "Users":
+    if user["role"] != "admin":
+        st.error("Administrators only.")
+        st.stop()
+    ui.show(ui.hero("Users", "Approve new accounts and manage access"))
 
-# ---------------------------------------------------------------- page 3
+    users = auth.list_users()
+    with st.form("manage"):
+        target = st.selectbox("User", [u["username"] for u in users])
+        action = st.selectbox("Action", ["Approve / enable", "Disable", "Make administrator", "Make expert"])
+        go = st.form_submit_button("Apply")
+    if go:
+        me = user["username"]
+        if action == "Approve / enable":
+            ok, msg = auth.set_status(target, "active", me)
+        elif action == "Disable":
+            ok, msg = auth.set_status(target, "disabled", me)
+        elif action == "Make administrator":
+            ok, msg = auth.set_role(target, "admin", me)
+        else:
+            ok, msg = auth.set_role(target, "expert", me)
+        (st.success if ok else st.error)(msg)
+
+    users = auth.list_users()                                   # fresh list after the action
+    pending = sum(u["status"] == "pending" for u in users)
+    ui.show(ui.kpi_row([
+        ui.kpi("Users", f"{len(users)}", "accounts", "#0B6E99"),
+        ui.kpi("Waiting for approval", f"{pending}", "need an administrator", "#F2A33C" if pending else "#1B9E77"),
+    ]))
+    st.dataframe(pd.DataFrame(users), hide_index=True)
 # ---------------------------------------------------------------- page 3
 else:
     ui.show(ui.hero("Model card", "What the model predicts, how well it works, and where to be careful"))
